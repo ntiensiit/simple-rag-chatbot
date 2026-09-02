@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 
-from rag import answer, chunk_text, embed
+from rag import answer, build_vectors, chunk_text, warmup
 
 DATA_DIR = Path("data")
 
@@ -26,7 +26,7 @@ def build_index(folder):
         chunks.extend(chunk_text(text))
     if not chunks:
         return [], np.empty((0, 0))
-    vectors = np.array([embed(c) for c in chunks], dtype=np.float32)
+    vectors = build_vectors(chunks)
     return chunks, vectors
 
 def print_help():
@@ -57,6 +57,7 @@ def main():
     chunks, vectors = build_index(DATA_DIR)
     if chunks:
         print(f"Indexed {len(chunks)} chunks from {DATA_DIR}/")
+        warmup()
     else:
         print(f"No documents in {DATA_DIR}/. Add files, then /reload")
     run_chat(chunks, vectors, topics)
