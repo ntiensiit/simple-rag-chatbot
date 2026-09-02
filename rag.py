@@ -7,7 +7,6 @@ import ollama
 EMBED_MODEL = "nomic-embed-text"
 CHAT_MODEL = "llama3.2"
 TOP_K = 3
-SUMMARY_K = 6
 MIN_SCORE = 0.45
 EMBED_BATCH = 32
 KEEP_ALIVE = "30m"
@@ -132,16 +131,34 @@ def build_prompt(query, context_chunks, topics=None, history=None):
 def chat(query, context_chunks, topics=None, history=None):
     return llm_chat([{"role": "user", "content": build_prompt(query, context_chunks, topics, history)}])
 
-def summarize_chat(query, chunks, matrix, topics=None):
-    q_vec = embed(query)
-    hits, score = retrieve_vec(q_vec, chunks, matrix, k=SUMMARY_K)
-    if score < MIN_SCORE:
-        hits, score = retrieve_vec(embed("overview summary main topics"), chunks, matrix, k=SUMMARY_K)
-    if score < MIN_SCORE:
-        return meta_chat("what topics are loaded and what do they cover?", topics)
-    context = "\n\n".join(hits)
-    msg = f"Summarize only from excerpts. List main themes. Be concise.\n\nExcerpts:\n{context}\n\nRequest: {query}"
+def map_summarize(name, text):
+    msg = f"Summarize in 1-3 sentences. Start with '{name}:'. Use only this document.\n\n{text}"
     return llm_chat([{"role": "user", "content": msg}])
+
+def reduce_summaries(partials, query):
+    partials = sorted(partials, key=lambda x: x[0])
+    n = len(partials)
+    names = ", ".join(name for name, _ in partials)
+    body = "\n\n".join(f"### {name}\n{summary}" for name, summary in partials)
+    msg = f"""You have exactly {n} document summaries: {names}.
+Write a global overview with exactly {n} bullets, one per document, same order as below.
+Do not merge, skip, or combine documents. Use only the summaries below.
+
+{body}
+
+Request: {query}"""
+    return llm_chat([{"role": "user", "content": msg}])
+
+def summarize_doc(doc):
+    name, text = doc
+    return name, map_summarize(name, text)
+
+def summarize_map_reduce(documents, query):
+    if not documents:
+        return "No documents loaded."
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        partials = list(pool.map(summarize_doc, documents))
+    return partials[0][1] if len(partials) == 1 else reduce_summaries(partials, query)
 
 def meta_chat(query, topics=None):
     msg = f"Answer only using these facts. Never invent details.\n\n{bot_facts(topics)}\n\nQuestion: {query}"
@@ -174,7 +191,7 @@ def warmup():
     embed("warmup")
     classify_intent("hi", ["sample"])
 
-def answer(query, chunks, vectors, topics=None, history=None):
+def answer(query, chunks, vectors, topics=None, history=None, documents=None):
     if not chunks:
         return "No documents loaded. Add .txt/.md files to data/ and run /reload."
     intent, hits, score = plan_query(query, chunks, vectors, topics, history)
@@ -182,7 +199,7 @@ def answer(query, chunks, vectors, topics=None, history=None):
     if intent == "refuse":
         return refuse_msg(topics)
     if intent == "summarize":
-        return summarize_chat(query, chunks, vectors, topics)
+        return summarize_map_reduce(documents or [], query)
     if intent in ("creative", "opinion"):
         return direct_chat(query, intent, topics)
     if intent == "factual":
