@@ -1,0 +1,7 @@
+Simple RAG Chatbot
+
+This is a minimal retrieval-augmented generation demo. Documents placed in the data folder are split into chunks, embedded with Ollama's nomic-embed-text model, and searched by cosine similarity when you ask a question.
+
+The chat model (llama3.2) receives the top matching chunks as context and answers based on that context only.
+
+Commands in the chatbot: /help, /reload, /quit.
