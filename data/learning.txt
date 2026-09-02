@@ -2,7 +2,7 @@ Learning How to Learn
 
 Spaced repetition beats cramming. Review material at increasing intervals: 1 day, 3 days, 1 week, 2 weeks.
 
-The Feynman technique: explain a concept in simple words as if teaching a beginner. Gaps in your explanation show what to study next.
+The Feynman technique: explain a concept in simple words as if teaching a beginner. Gaps in your explanation show what to study next. Named after physicist Richard Feynman.
 
 Active recall is stronger than re-reading. Close the book and write what you remember before checking notes.
 

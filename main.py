@@ -35,6 +35,7 @@ def print_help():
 def run_chat(chunks, vectors, topics):
     print("RAG Chatbot - ask about your documents")
     print_help()
+    history = []
     while True:
         query = input("\nYou: ").strip()
         if not query:
@@ -47,9 +48,14 @@ def run_chat(chunks, vectors, topics):
         if query == "/reload":
             chunks, vectors = build_index(DATA_DIR)
             topics = list_topics(DATA_DIR)
+            history = []
             print(f"Reloaded {len(chunks)} chunks")
             continue
-        print(f"\nAssistant: {answer(query, chunks, vectors, topics)}\n")
+        reply = answer(query, chunks, vectors, topics, history)
+        history.append({"role": "user", "content": query})
+        history.append({"role": "assistant", "content": reply})
+        history = history[-12:]
+        print(f"\nAssistant: {reply}\n")
 
 def main():
     DATA_DIR.mkdir(exist_ok=True)
